@@ -7,4 +7,4 @@ resources:
 images:
 - name: ghcr.io/argocon2022-workshop/demo-app
   newName: ghcr.io/alex-zai/demo-app
-  newTag: f5ffa3a90ba6f3271b29f228dc266eff9a6862ae
+  newTag: 642a257439b94260e9c022e2495406c91049b5a7
