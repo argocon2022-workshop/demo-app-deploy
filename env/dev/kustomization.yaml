@@ -3,3 +3,8 @@ kind: Kustomization
 
 resources:
 - ../../base
+
+images:
+- name: ghcr.io/argocon2022-workshop/demo-app
+  newName: ghcr.io/alex-zai/demo-app
+  newTag: f5ffa3a90ba6f3271b29f228dc266eff9a6862ae
