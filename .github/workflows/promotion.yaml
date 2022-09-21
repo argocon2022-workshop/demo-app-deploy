@@ -1,0 +1,48 @@
+name: Promote Image Change
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  promote-image-change:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.DEPLOY_PAT }}
+          fetch-depth: 0
+      - name: Fetch Metadata
+        run: git fetch origin "refs/notes/*:refs/notes/*"
+      - name: Get Commit Metadata
+        id: commit-metadata
+        run: |
+          pat='image: (.*)'; [[ "$(git notes show)" =~ $pat ]] && echo "::set-output name=IMAGE::${BASH_REMATCH[1]}" || echo ''
+          pat='env: (.*)'; [[ "$(git notes show)" =~ $pat ]] && echo "::set-output name=ENV::${BASH_REMATCH[1]}" || echo ''
+      - uses: fregante/setup-git-user@v1
+        if: ${{ steps.commit-metadata.outputs.IMAGE }}
+      - name: Promote Image Change
+        if: ${{ steps.commit-metadata.outputs.IMAGE }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IMAGE=${{ steps.commit-metadata.outputs.IMAGE }}
+          ENV="${{ steps.commit-metadata.outputs.ENV || 'dev' }}"
+          if [ $ENV == "dev" ]; then
+            echo "Promoting $IMAGE to staging"
+            cd env/stage && kustomize edit set image ghcr.io/argocon2022-workshop/demo-app=$IMAGE
+            git add .
+            git commit -m "Promote stage to $IMAGE"
+            git notes append -m "image: $IMAGE"
+            git notes append -m "env: stage"
+            git push origin "refs/notes/*" --force && git push origin main
+          elif [ $ENV == "stage" ]; then
+            echo "Promoting $IMAGE to production"
+            git checkout -b auto-promotion
+            cd env/prod && kustomize edit set image ghcr.io/argocon2022-workshop/demo-app=$IMAGE
+            git add .
+            git commit -m "Promote prod to $IMAGE"
+            git push origin auto-promotion --force
+            gh pr create --title "Promote prod to $IMAGE" --body "Promote prod to $IMAGE" --base main --head auto-promotion
+          fi
